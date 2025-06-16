@@ -66,7 +66,7 @@ function startBot() {
       const pitch = (Math.random() - 0.5) * Math.PI;
       bot.look(yaw, pitch, true);
       bot.swingArm();
-      if (Math.random() > 0.5) bot.chat("انا هنا يلا منك ليه 😒");
+      if (Math.random() > 0.5) bot.chat(" انا هنا شغال");
     }, 30000);
   });
 
