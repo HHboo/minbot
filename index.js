@@ -6,21 +6,33 @@ const fs = require("fs");
 
 let botRunning = false;
 const path = "./player_times.json";
+const xpPath = "./player_xp.json";
+
 let playerJoinTimes = {};
 let playerTimes = {};
+let playerXP = {};
 
-// 🔁 تحميل البيانات
+// 🟦 تحميل البيانات
 function loadTimes() {
   if (!fs.existsSync(path)) fs.writeFileSync(path, "{}");
   return JSON.parse(fs.readFileSync(path));
 }
 
-// 💾 حفظ البيانات
 function saveTimes(times) {
   fs.writeFileSync(path, JSON.stringify(times, null, 2));
 }
 
+function loadXP() {
+  if (!fs.existsSync(xpPath)) fs.writeFileSync(xpPath, "{}");
+  return JSON.parse(fs.readFileSync(xpPath));
+}
+
+function saveXP(xpData) {
+  fs.writeFileSync(xpPath, JSON.stringify(xpData, null, 2));
+}
+
 playerTimes = loadTimes();
+playerXP = loadXP();
 
 function startBot() {
   if (botRunning) {
@@ -87,7 +99,7 @@ function startBot() {
     delete playerJoinTimes[player.username];
   });
 
-  // 💾 الحفظ التلقائي كل دقيقة
+  // 💾 الحفظ التلقائي كل دقيقة + XP
   setInterval(() => {
     const now = Date.now();
     for (const username in playerJoinTimes) {
@@ -95,8 +107,27 @@ function startBot() {
       const sessionTime = Math.floor((now - joinTime) / 1000);
       playerTimes[username] = (playerTimes[username] || 0) + sessionTime;
       playerJoinTimes[username] = now;
+
+      // 🎁 XP: أضف 10 XP لكل دقيقة
+      playerXP[username] = (playerXP[username] || 0) + 10;
+
+      // ✨ مكافأة إذا وصل XP لـ 10 أو أكثر
+      if (playerXP[username] >= 10) {
+        playerXP[username] -= 10;
+        const target = bot.players[username]?.entity;
+        if (target) {
+          bot.chat(`🎁 ${username} خد 10 خشبات مقابل الـ XP بتوعه!`);
+          const woodItem = bot.inventory.items().find(i => i.name.includes("wood"));
+          if (woodItem) {
+            bot.tossStack(woodItem);
+          } else {
+            bot.chat("❌ معنديش خشب دلوقتي 😅");
+          }
+        }
+      }
     }
     saveTimes(playerTimes);
+    saveXP(playerXP);
   }, 60000);
 
   bot.on("chat", async (username, message) => {
@@ -107,7 +138,6 @@ function startBot() {
       bot.chat(`عاوز ايه يا ${username}؟ 😐`);
     }
 
-    // 🏆 عرض الـ TOP10
     if (msg === "top10") {
       const sorted = Object.entries(playerTimes)
         .sort((a, b) => b[1] - a[1])
@@ -119,9 +149,14 @@ function startBot() {
         bot.chat(`#${index + 1} - ${user}: ${minutes} دقيقة`);
       });
     }
+
+    if (msg === "xp") {
+      const xp = playerXP[username] || 0;
+      bot.chat(`📊 ${username}، عندك ${xp} نقطة XP.`);
+    }
   });
 
-  // متابعة اللاعب المستهدف لو في حد بيتتابع
+  // متابعة اللاعب المستهدف
   setInterval(() => {
     if (followTarget) {
       bot.pathfinder.setGoal(new goals.GoalFollow(followTarget, 1), true);
@@ -131,18 +166,14 @@ function startBot() {
   bot.on("end", () => {
     console.log("❌ البوت خرج من السيرفر! هيحاول يدخل تاني بعد دقيقتين...");
     botRunning = false;
-    setTimeout(() => {
-      startBot();
-    }, 120000);
+    setTimeout(startBot, 120000);
   });
 
   bot.on("error", (err) => {
     console.error("❌ حصل Error:", err);
     console.log("⏳ هيجرب يدخل تاني بعد دقيقتين...");
     botRunning = false;
-    setTimeout(() => {
-      startBot();
-    }, 120000);
+    setTimeout(startBot, 120000);
   });
 }
 
