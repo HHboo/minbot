@@ -1,0 +1,6 @@
+const xpPath = './xp.json';
+let playerXP = fs.existsSync(xpPath) ? JSON.parse(fs.readFileSync(xpPath)) : {};
+
+function saveXP() {
+  fs.writeFileSync(xpPath, JSON.stringify(playerXP, null, 2));
+}
