@@ -19,6 +19,7 @@ function loadTimes() {
 function saveTimes(times) {
   fs.writeFileSync(path, JSON.stringify(times, null, 2));
 }
+
 playerTimes = loadTimes();
 
 function startBot() {
@@ -41,6 +42,11 @@ function startBot() {
   let followTarget = null;
 
   bot.on("spawn", () => {
+    if (!bot.player || !bot.player.entity) {
+      console.log("⚠️ متصل بس مفيش عالم. ممكن السيرفر لسه بيشتغل أو مقفول.");
+      return;
+    }
+
     console.log("✅ البوت دخل السيرفر!");
     bot.chat("ana bot");
 
@@ -81,7 +87,7 @@ function startBot() {
     delete playerJoinTimes[player.username];
   });
 
-  // 💾 الحفظ التلقائي
+  // 💾 الحفظ التلقائي كل دقيقة
   setInterval(() => {
     const now = Date.now();
     for (const username in playerJoinTimes) {
@@ -113,10 +119,9 @@ function startBot() {
         bot.chat(`#${index + 1} - ${user}: ${minutes} دقيقة`);
       });
     }
-
-    // باقي أوامر البوت ممكن تضيفها هنا...
   });
 
+  // متابعة اللاعب المستهدف لو في حد بيتتابع
   setInterval(() => {
     if (followTarget) {
       bot.pathfinder.setGoal(new goals.GoalFollow(followTarget, 1), true);
