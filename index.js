@@ -108,22 +108,13 @@ function startBot() {
       playerTimes[username] = (playerTimes[username] || 0) + sessionTime;
       playerJoinTimes[username] = now;
 
-// 💾 الحفظ التلقائي كل دقيقة + XP
-setInterval(() => {
-  const now = Date.now();
-  for (const username in playerJoinTimes) {
-    const joinTime = playerJoinTimes[username];
-    const sessionTime = Math.floor((now - joinTime) / 1000);
-    playerTimes[username] = (playerTimes[username] || 0) + sessionTime;
-    playerJoinTimes[username] = now;
+      // 🎁 XP: أضف 10 XP لكل دقيقة
+      playerXP[username] = (playerXP[username] || 0) + 10;
+    }
 
-    // 🎁 XP: أضف 10 XP لكل دقيقة
-    playerXP[username] = (playerXP[username] || 0) + 10;
-  }
-  saveTimes(playerTimes);
-  saveXP(playerXP);
-}, 60000);
-
+    saveTimes(playerTimes);
+    saveXP(playerXP);
+  }, 60000);
 
   bot.on("chat", async (username, message) => {
     if (username === bot.username) return;
