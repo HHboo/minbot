@@ -108,27 +108,22 @@ function startBot() {
       playerTimes[username] = (playerTimes[username] || 0) + sessionTime;
       playerJoinTimes[username] = now;
 
-      // 🎁 XP: أضف 10 XP لكل دقيقة
-      playerXP[username] = (playerXP[username] || 0) + 10;
+// 💾 الحفظ التلقائي كل دقيقة + XP
+setInterval(() => {
+  const now = Date.now();
+  for (const username in playerJoinTimes) {
+    const joinTime = playerJoinTimes[username];
+    const sessionTime = Math.floor((now - joinTime) / 1000);
+    playerTimes[username] = (playerTimes[username] || 0) + sessionTime;
+    playerJoinTimes[username] = now;
 
-      // ✨ مكافأة إذا وصل XP لـ 10 أو أكثر
-      if (playerXP[username] >= 10) {
-        playerXP[username] -= 10;
-        const target = bot.players[username]?.entity;
-        if (target) {
-          bot.chat(`🎁 ${username} خد 10 خشبات مقابل الـ XP بتوعه!`);
-          const woodItem = bot.inventory.items().find(i => i.name.includes("wood"));
-          if (woodItem) {
-            bot.tossStack(woodItem);
-          } else {
-            bot.chat("❌ معنديش خشب دلوقتي 😅");
-          }
-        }
-      }
-    }
-    saveTimes(playerTimes);
-    saveXP(playerXP);
-  }, 60000);
+    // 🎁 XP: أضف 10 XP لكل دقيقة
+    playerXP[username] = (playerXP[username] || 0) + 10;
+  }
+  saveTimes(playerTimes);
+  saveXP(playerXP);
+}, 60000);
+
 
   bot.on("chat", async (username, message) => {
     if (username === bot.username) return;
