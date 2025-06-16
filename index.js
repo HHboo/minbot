@@ -2,11 +2,26 @@ const mineflayer = require("mineflayer");
 const keepAlive = require("./keep_alive");
 const { pathfinder, Movements, goals } = require("mineflayer-pathfinder");
 const collectBlock = require("mineflayer-collectblock").plugin;
+const fs = require("fs");
 
-let botRunning = false; // متغيّر لتتبع حالة البوت
+let botRunning = false;
+const path = "./player_times.json";
+let playerJoinTimes = {};
+let playerTimes = {};
+
+// 🔁 تحميل البيانات
+function loadTimes() {
+  if (!fs.existsSync(path)) fs.writeFileSync(path, "{}");
+  return JSON.parse(fs.readFileSync(path));
+}
+
+// 💾 حفظ البيانات
+function saveTimes(times) {
+  fs.writeFileSync(path, JSON.stringify(times, null, 2));
+}
+playerTimes = loadTimes();
 
 function startBot() {
-  // لو البوت شغّال بالفعل، منرجعش نبدأه تاني
   if (botRunning) {
     console.log("⚠️ البوت شغّال بالفعل، مش هيبدأ تاني.");
     return;
@@ -19,8 +34,7 @@ function startBot() {
     version: "1.21.5",
   });
 
-  botRunning = true; // تم تشغيل البوت
-
+  botRunning = true;
   bot.loadPlugin(pathfinder);
   bot.loadPlugin(collectBlock);
 
@@ -38,25 +52,46 @@ function startBot() {
     setInterval(() => {
       const move = movements[Math.floor(Math.random() * movements.length)];
       bot.setControlState(move, true);
-      setTimeout(() => {
-        bot.setControlState(move, false);
-      }, 1000);
-
+      setTimeout(() => bot.setControlState(move, false), 1000);
       bot.setControlState("jump", true);
-      setTimeout(() => {
-        bot.setControlState("jump", false);
-      }, 500);
+      setTimeout(() => bot.setControlState("jump", false), 500);
 
       const yaw = Math.random() * Math.PI * 2;
       const pitch = (Math.random() - 0.5) * Math.PI;
       bot.look(yaw, pitch, true);
       bot.swingArm();
-
-      if (Math.random() > 0.5) {
-        bot.chat("انا هنا يلا منك ليه 😒");
-      }
+      if (Math.random() > 0.5) bot.chat("انا هنا يلا منك ليه 😒");
     }, 30000);
   });
+
+  // 🟦 تتبع وقت الدخول
+  bot.on("playerJoined", (player) => {
+    if (!player?.username || player.username === bot.username) return;
+    playerJoinTimes[player.username] = Date.now();
+  });
+
+  // 🟥 تتبع وقت الخروج
+  bot.on("playerLeft", (player) => {
+    if (!player?.username || player.username === bot.username) return;
+    const joinTime = playerJoinTimes[player.username];
+    if (!joinTime) return;
+    const sessionTime = Math.floor((Date.now() - joinTime) / 1000);
+    playerTimes[player.username] = (playerTimes[player.username] || 0) + sessionTime;
+    saveTimes(playerTimes);
+    delete playerJoinTimes[player.username];
+  });
+
+  // 💾 الحفظ التلقائي
+  setInterval(() => {
+    const now = Date.now();
+    for (const username in playerJoinTimes) {
+      const joinTime = playerJoinTimes[username];
+      const sessionTime = Math.floor((now - joinTime) / 1000);
+      playerTimes[username] = (playerTimes[username] || 0) + sessionTime;
+      playerJoinTimes[username] = now;
+    }
+    saveTimes(playerTimes);
+  }, 60000);
 
   bot.on("chat", async (username, message) => {
     if (username === bot.username) return;
@@ -66,7 +101,20 @@ function startBot() {
       bot.chat(`عاوز ايه يا ${username}؟ 😐`);
     }
 
-    // باقي الأوامر هنا...
+    // 🏆 عرض الـ TOP10
+    if (msg === "top10") {
+      const sorted = Object.entries(playerTimes)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+      if (sorted.length === 0) return bot.chat("📭 لا يوجد بيانات بعد!");
+      bot.chat("🏆 أفضل 10 لاعبين من حيث الوقت:");
+      sorted.forEach(([user, secs], index) => {
+        const minutes = Math.floor(secs / 60);
+        bot.chat(`#${index + 1} - ${user}: ${minutes} دقيقة`);
+      });
+    }
+
+    // باقي أوامر البوت ممكن تضيفها هنا...
   });
 
   setInterval(() => {
@@ -77,7 +125,7 @@ function startBot() {
 
   bot.on("end", () => {
     console.log("❌ البوت خرج من السيرفر! هيحاول يدخل تاني بعد دقيقتين...");
-    botRunning = false; // تم إيقاف البوت
+    botRunning = false;
     setTimeout(() => {
       startBot();
     }, 120000);
@@ -86,12 +134,11 @@ function startBot() {
   bot.on("error", (err) => {
     console.error("❌ حصل Error:", err);
     console.log("⏳ هيجرب يدخل تاني بعد دقيقتين...");
-    botRunning = false; // حصل خطأ، مش شغّال
+    botRunning = false;
     setTimeout(() => {
       startBot();
     }, 120000);
   });
 }
 
-// 🟢 تشغيل البوت أول مرة
 startBot();
